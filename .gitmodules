@@ -1,0 +1,6 @@
+[submodule "sassrv"]
+	path = sassrv
+	url = https://github.com/raitechnology/sassrv
+[submodule "natsmd"]
+	path = natsmd
+	url = https://github.com/raitechnology/natsmd
