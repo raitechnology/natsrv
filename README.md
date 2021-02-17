@@ -129,14 +129,12 @@ configured in seconds.  This needs to be transformed into a
 _RV.ERROR.SYSTEM.DATALOSS... message if messages are lost and the Bridge
 needs to reconnect after a timeout.
 
-2.  Squash multiple overlapping subscriptions.  If '>' and TEST are subscribed
+2.  (fixed Feb 17 2021) Deduplicate multiple overlapping subscriptions.  If '>' and TEST are subscribed
 then the NATS server will publish messages for each subscripton using the
 [SID](https://docs.nats.io/nats-protocol/nats-protocol#sub) used for the
 subsciption.  The NATS RV Bridge does not deduplicate these messages and
 forwards them.  This causes the subscribers of '>' and TEST to see two messages
-published when a TEST message is published.  The workaround for this is
-to use another Bridge daemon to separate the subscriptions.  This isn't common
-but is useful for debugging to see all subjects on a wildcard through a node.
+published when a TEST message is published.
 
 3. The NATS Bridge only allows one service per process to be attached.  The
 workaround for this is to use multiple daemons for each service defined.  This

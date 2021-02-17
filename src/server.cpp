@@ -81,7 +81,7 @@ struct MyListener : public EvRvListen, public EvNatsClient,
     this->network_cnt      = 0;
     this->total_bytes_lost = 0;
 
-    if ( this->mcast.recv_cnt > 0 ) {
+    if ( this->mcast.recv_cnt > 0 && this->mcast.recv_ip[ 0 ] != 0 ) {
       bool send_overlaps_recv = false;
       for ( i = 0; i < this->mcast.recv_cnt; i++ ) {
         mcast_ip[ ip_cnt ] = this->mcast.recv_ip[ i ];
