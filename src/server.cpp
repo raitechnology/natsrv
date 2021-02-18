@@ -26,7 +26,7 @@ struct Args : public MainLoopVars { /* argv[] parsed args */
 };
 
 struct MyListener : public EvRvListen, public EvNatsClient,
-                    public EvNatsClientNotify {
+                    public EvNatsClientNotify, public EvRvReconnectNotify {
   void * operator new( size_t, void *ptr ) { return ptr; }
   int             nats_port;
   char            svc_buf[ 32 ];
@@ -35,15 +35,17 @@ struct MyListener : public EvRvListen, public EvNatsClient,
   size_t          client_cnt,
                   connect_cnt,
                   start_cnt,
-                  stop_cnt,
-                  network_cnt;
+                  network_cnt,
+                  shutdown_cnt;
   uint64_t        total_bytes_lost;
+  bool            is_reconnecting;
 
   MyListener( kv::EvPoll &p ) : EvRvListen( p ), EvNatsClient( p ),
                                 nats_port( 0 ), clients( 0 ), users( 0 ),
                                 client_cnt( 0 ), connect_cnt( 0 ),
-                                start_cnt( 0 ), stop_cnt( 0 ), network_cnt( 0 ),
-                                total_bytes_lost( 0 ) {}
+                                start_cnt( 0 ), network_cnt( 0 ),
+                                shutdown_cnt( 0 ), total_bytes_lost( 0 ),
+                                is_reconnecting( false ) {}
   /* EvRvListen */
   virtual int start_host( void ) noexcept final {
     /*uint8_t * rcv = (uint8_t *) (void *) &this->mcast.recv_ip[ 0 ],
@@ -77,8 +79,8 @@ struct MyListener : public EvRvListen, public EvNatsClient,
 
     this->connect_cnt      = 0;
     this->start_cnt        = 0;
-    this->stop_cnt         = 0;
     this->network_cnt      = 0;
+    this->shutdown_cnt     = 0;
     this->total_bytes_lost = 0;
 
     if ( this->mcast.recv_cnt > 0 && this->mcast.recv_ip[ 0 ] != 0 ) {
@@ -131,30 +133,44 @@ struct MyListener : public EvRvListen, public EvNatsClient,
         else
           this->clients[ i ]->fwd_all_subs = false;
       }
-      for ( i = 0; i < ip_cnt; i++ ) {
+      this->network_cnt = ip_cnt;
+    }
+    return this->do_connect();
+  }
+  int do_connect( void ) {
+    size_t i;
+    for ( i = 0; i < this->network_cnt; i++ ) {
+      if ( ! this->clients[ i ]->is_connected() ) {
         if ( ! this->clients[ i ]->connect( "127.0.0.1", this->nats_port,
-                                            this ) )
+                                            this ) ) {
+          this->print_error();
           break;
+        }
         this->connect_cnt++;
-        this->network_cnt++;
-      }
-      if ( i != ip_cnt ) {
-        for ( size_t j = 0; j < i; j++ )
-          this->clients[ i ]->idle_push( EV_SHUTDOWN );
-        return -1;
       }
     }
-    else {
-      /*printf( "host_parameters:      " );
-      this->mcast.print();*/
-      if ( ! this->EvNatsClient::connect( "127.0.0.1", this->nats_port,
-                                          this ) ) {
-        printf( "failed\n" );
+    if ( i != this->network_cnt ) {
+      for ( size_t j = 0; j < i; j++ )
+        this->clients[ i ]->idle_push( EV_SHUTDOWN );
+      return -1;
+    }
+    if ( this->network_cnt > 0 )
+      return 0;
+
+    if ( ! this->EvNatsClient::is_connected() ) {
+      if ( ! this->EvNatsClient::connect( "127.0.0.1", this->nats_port, this ) ) {
+        this->print_error();
         return -1;
       }
       this->connect_cnt++;
     }
     return 0;
+  }
+  void print_error( void ) {
+    char buf[ 80 ];
+    ::snprintf( buf, sizeof( buf ),
+                "connect to nats-server at 127.0.0.1:%u", this->nats_port );
+    perror( buf );
   }
   virtual int stop_host( void ) noexcept final {
     printf( "stop_network:         service %.*s",
@@ -165,9 +181,12 @@ struct MyListener : public EvRvListen, public EvNatsClient,
     }
     printf( "\n" );
     this->EvRvListen::stop_host();
-    if ( this->network_cnt == 0 )
+    if ( this->network_cnt == 0 ) {
+      this->shutdown_cnt = 1;
       this->EvNatsClient::do_shutdown();
+    }
     else {
+      this->shutdown_cnt = this->network_cnt;
       for ( size_t i = 0; i < this->network_cnt; i++ )
         this->clients[ i ]->do_shutdown();
     }
@@ -180,13 +199,33 @@ struct MyListener : public EvRvListen, public EvNatsClient,
       this->EvRvListen::start_host();
     }
   }
-  virtual void on_shutdown( uint64_t bytes_lost ) noexcept final {
-    this->total_bytes_lost += bytes_lost;
-    if ( ++this->stop_cnt == this->connect_cnt ) {
-      if ( this->total_bytes_lost != 0 )
-        printf( "bytes_lost %lu\n", this->total_bytes_lost );
-      printf( "shutdown\n" );
+  virtual void on_shutdown( uint64_t bytes_lost,  const char *err,
+                            size_t errlen ) noexcept final {
+    if ( errlen != 0 )
+      printf( "%.*s\n", (int) errlen, err );
+    this->connect_cnt -= 1;
+    if ( this->shutdown_cnt != 0 ) {
+      this->total_bytes_lost += bytes_lost;
+      if ( this->connect_cnt == 0 ) {
+        if ( this->total_bytes_lost != 0 )
+          printf( "bytes_lost %lu\n", this->total_bytes_lost );
+        printf( "shutdown\n" );
+      }
     }
+    else {
+      this->EvRvListen::data_loss_error( bytes_lost, err, errlen );
+      if ( ! this->is_reconnecting ) {
+        this->is_reconnecting = true;
+        printf( "reconnect in 10 seconds\n" );
+        this->set_reconnect_timer( 10, this );
+      }
+    }
+  }
+  /* EvRvReconnectNotify */
+  virtual void on_reconnect( void ) noexcept {
+    this->is_reconnecting = false;
+    if ( this->shutdown_cnt == 0 )
+      this->do_connect();
   }
 };
 
