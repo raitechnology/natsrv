@@ -124,8 +124,8 @@ route through the network without any traffic segregation.
 
 These are issues that the NATS RV Bridge has in order of importance:
 
-1. The NATS Server will disconnect if the consumer falls to far behind,
-   configured in seconds.  This needs to be transformed into a
+1. (fixed Feb 19 2021). The NATS Server will disconnect if the consumer falls
+   to far behind, configured in seconds.  This needs to be transformed into a
    _RV.ERROR.SYSTEM.DATALOSS... message if messages are lost and the Bridge
    needs to reconnect after a timeout.
 
@@ -137,7 +137,13 @@ These are issues that the NATS RV Bridge has in order of importance:
     forwards them.  This causes the subscribers of '>' and TEST to see two
     messages published when a TEST message is published.
 
-3. The NATS Bridge only allows one service per process to be attached.  The
+3. If multiple networks are used and no accounts are created to segregate the
+   traffic, loops will occur bacause the subscribers will see traffic that
+   the publishers send.  There should be a loop check on startup to make sure
+   that loops are not present.  This could be done by publishing to the
+   DAEMON inbox, since this is always subscribed.
+
+4. The NATS Bridge only allows one service per process to be attached.  The
    workaround for this is to use multiple daemons for each service defined.
    This may remain, since it is a good idea to separate the processes anyway.
 
@@ -146,7 +152,7 @@ These are issues that the NATS RV Bridge has in order of importance:
      - natsrv_server -p 7501 --
        rv_client -service 5001 -daemon 7501
 
-4. Since each NATS Bridge is identified with a DAEMON.iphex, if multiple
+5. Since each NATS Bridge is identified with a DAEMON.iphex, if multiple
    Bridges are attached to the same service networks, there will be duplicate
    DAEMON identifiers.  These are used as endpoints for subscription management
    and as HOST.STATUS.iphex publishes.  The internal subscription routing will
@@ -155,7 +161,7 @@ These are issues that the NATS RV Bridge has in order of importance:
    interface or the hostname in the -network argument, for example 192.168.0.1
    is iphex C0A80001.
 
-5. NATS does not allow wildcards to be published but RV does.  The RV
+6. NATS does not allow wildcards to be published but RV does.  The RV
    LISTEN.START messages are the primary source of wildcard publishes, when
    a wildcard subscription is started.  The encoding of these subjects over
    the NATS network are translated '*' as '+' and '>' as '<':
