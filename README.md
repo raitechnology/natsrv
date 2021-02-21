@@ -1,5 +1,7 @@
 # Rai NATS RV Bridge
 
+[![Copr build status](https://copr.fedorainfracloud.org/coprs/injinj/gold/package/natsrv/status_image/last_build.png)](https://copr.fedorainfracloud.org/coprs/injinj/gold/package/natsrv/)
+
 1. [Description of the NATS RV Bridge](#description-of-the-nats-rv-bridge)
 2. [A NATS RV Bridge use case](#a-nats-rv-bridge-use-case)
 3. [The NATS RV Bridge limitations and issues](#the-nats-rv-bridge-limitations-and-issues)
