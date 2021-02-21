@@ -101,9 +101,9 @@ dlnk_lib       += -lnatsmd
 endif
 
 rpath       := -Wl,-rpath,$(pwd)/$(libd)$(rpath1)$(rpath2)$(rpath3)$(rpath4)$(rpath5)$(rpath6)$(rpath7)
-dlnk_lib    += -lpcre2-8 -lcrypto -ldl
+dlnk_lib    += -lpcre2-8
 malloc_lib  :=
-lnk_lib     += -lpcre2-8 -ldl
+lnk_lib     += -lpcre2-8
 
 includes += $(sassrv_include) $(natsmd_include)
 
