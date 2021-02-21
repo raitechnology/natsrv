@@ -18,6 +18,7 @@ BuildRequires:  libdecnumber
 BuildRequires:  pcre2-devel
 BuildRequires:  hdrhist
 BuildRequires:  natsmd
+BuildRequires:  sassrv
 Requires:       raikv
 Requires:       raimd
 Requires:       libdecnumber
@@ -25,6 +26,7 @@ Requires:       pcre2
 Requires:       openssl
 Requires:       hdrhist
 Requires:       natsmd
+Requires:       sassrv
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
 
