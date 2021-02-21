@@ -16,11 +16,6 @@ BuildRequires:  raikv
 BuildRequires:  raimd
 BuildRequires:  libdecnumber
 BuildRequires:  pcre2-devel
-BuildRequires:  openssl-devel
-BuildRequires:  git-core
-BuildRequires:  liblzf-devel
-BuildRequires:  systemd
-BuildRequires:  zlib-devel
 BuildRequires:  hdrhist
 BuildRequires:  natsmd
 Requires:       raikv
@@ -28,15 +23,13 @@ Requires:       raimd
 Requires:       libdecnumber
 Requires:       pcre2
 Requires:       openssl
-Requires:       liblzf
-Requires:       zlib
 Requires:       hdrhist
 Requires:       natsmd
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
 
 %description
-Rai Aeron RV Bridge
+Rai NATS RV Bridge
 
 %prep
 %setup -q
@@ -49,7 +42,6 @@ Rai Aeron RV Bridge
 
 %build
 make build_dir=./usr %{?_smp_mflags} dist_bins
-cp -a ./include ./usr/include
 
 %install
 rm -rf %{buildroot}
@@ -63,19 +55,7 @@ rm -rf %{buildroot}
 
 %files
 %defattr(-,root,root,-)
-/usr/bin/*
-/usr/lib64/*
-/usr/include/*
-
-%post
-echo "${RPM_INSTALL_PREFIX}/lib64" > /etc/ld.so.conf.d/%{name}.conf
-/sbin/ldconfig
-
-%postun
-if [ $1 -eq 0 ] ; then
-rm -f /etc/ld.so.conf.d/%{name}.conf
-fi
-/sbin/ldconfig
+%{_bindir}/*
 
 %changelog
 * __DATE__ <support@raitechnology.com>

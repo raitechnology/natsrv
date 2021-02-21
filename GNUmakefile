@@ -208,7 +208,7 @@ dist_bins: $(all_libs) $(all_dlls) $(bind)/natsrv_server
 
 .PHONY: dist_rpm
 dist_rpm: srpm
-	( cd rpmbuild && rpmbuild --define "-topdir `pwd`" -ba SPECS/aeronmd.spec )
+	( cd rpmbuild && rpmbuild --define "-topdir `pwd`" -ba SPECS/natsrv.spec )
 
 # dependencies made by 'make depend'
 -include $(dependd)/depend.make
@@ -217,7 +217,7 @@ ifeq ($(DESTDIR),)
 # 'sudo make install' puts things in /usr/local/lib, /usr/local/include
 install_prefix = /usr/local
 else
-# debuild uses DESTDIR to put things into debian/aeronmd/usr
+# debuild uses DESTDIR to put things into debian/natsrv/usr
 install_prefix = $(DESTDIR)/usr
 endif
 
