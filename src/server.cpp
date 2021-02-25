@@ -26,7 +26,7 @@ struct Args : public MainLoopVars { /* argv[] parsed args */
 };
 
 struct MyListener : public EvRvListen, public EvNatsClient,
-                    public EvNatsClientNotify, public EvRvReconnectNotify {
+                    public EvNatsClientNotify, public EvTimerCallback {
   void * operator new( size_t, void *ptr ) { return ptr; }
   int             nats_port;
   char            svc_buf[ 32 ];
@@ -38,6 +38,7 @@ struct MyListener : public EvRvListen, public EvNatsClient,
                   network_cnt,
                   shutdown_cnt;
   uint64_t        total_bytes_lost;
+  double          reconnect_time;
   uint16_t        reconnect_timeout_secs;
   bool            is_reconnecting;
 
@@ -46,6 +47,7 @@ struct MyListener : public EvRvListen, public EvNatsClient,
                                 client_cnt( 0 ), connect_cnt( 0 ),
                                 start_cnt( 0 ), network_cnt( 0 ),
                                 shutdown_cnt( 0 ), total_bytes_lost( 0 ),
+                                reconnect_time( 0 ),
                                 reconnect_timeout_secs( 1 ),
                                 is_reconnecting( false ) {}
   /* EvRvListen */
@@ -137,12 +139,8 @@ struct MyListener : public EvRvListen, public EvNatsClient,
       }
       this->network_cnt = ip_cnt;
     }
-    if ( this->do_connect() != 0 ) {
-      printf( "reconnect in %u seconds\n", this->reconnect_timeout_secs );
-      this->set_reconnect_timer( this->reconnect_timeout_secs, this );
-      if ( this->reconnect_timeout_secs < 16 )
-        this->reconnect_timeout_secs *= 2;
-    }
+    if ( this->do_connect() != 0 )
+      this->setup_reconnect();
     return 0;
   }
   int do_connect( void ) {
@@ -200,11 +198,30 @@ struct MyListener : public EvRvListen, public EvNatsClient,
     }
     return 0;
   }
+  void setup_reconnect( void ) noexcept {
+    if ( ! this->is_reconnecting ) {
+      this->is_reconnecting = true;
+      double now = current_monotonic_time_s();
+      if ( this->reconnect_time != 0 &&
+           this->reconnect_time +
+             (double) this->reconnect_timeout_secs * 2 > now ) {
+          this->reconnect_timeout_secs *= 2;
+          if ( this->reconnect_timeout_secs > 16 )
+            this->reconnect_timeout_secs = 16;
+      }
+      else {
+        this->reconnect_timeout_secs = 1;
+      }
+      this->reconnect_time = now;
+      printf( "reconnect in %u seconds\n", this->reconnect_timeout_secs );
+      this->EvListen::poll.add_timer_seconds( *this,
+                                           this->reconnect_timeout_secs, 0, 0 );
+    }
+  }
   /* EvNatsClientNotify */
   virtual void on_connect( void ) noexcept final {
     if ( ++this->start_cnt == this->connect_cnt ) {
       printf( "connected\n" );
-      this->reconnect_timeout_secs = 1;
       this->EvRvListen::start_host();
     }
   }
@@ -224,26 +241,19 @@ struct MyListener : public EvRvListen, public EvNatsClient,
     }
     else {
       this->EvRvListen::data_loss_error( bytes_lost, err, errlen );
-      if ( ! this->is_reconnecting ) {
-        this->is_reconnecting = true;
-        printf( "reconnect in %u seconds\n", this->reconnect_timeout_secs );
-        this->set_reconnect_timer( this->reconnect_timeout_secs, this );
-        if ( this->reconnect_timeout_secs < 16 )
-          this->reconnect_timeout_secs *= 2;
-      }
+      this->setup_reconnect();
     }
   }
-  /* EvRvReconnectNotify */
-  virtual void on_reconnect( void ) noexcept {
-    this->is_reconnecting = false;
-    if ( this->shutdown_cnt == 0 ) {
-      if ( this->do_connect() != 0 ) {
-        printf( "reconnect in %u seconds\n", this->reconnect_timeout_secs );
-        this->set_reconnect_timer( this->reconnect_timeout_secs, this );
-        if ( this->reconnect_timeout_secs < 16 )
-          this->reconnect_timeout_secs *= 2;
+  /* EvTimerCallback */
+  virtual bool timer_cb( uint64_t, uint64_t ) noexcept {
+    if ( this->is_reconnecting ) {
+      this->is_reconnecting = false;
+      if ( this->shutdown_cnt == 0 ) {
+        if ( this->do_connect() != 0 )
+          this->setup_reconnect();
       }
     }
+    return false;
   }
 };
 
