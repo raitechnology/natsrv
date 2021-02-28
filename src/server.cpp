@@ -26,24 +26,24 @@ struct Args : public MainLoopVars { /* argv[] parsed args */
 };
 
 struct MyListener : public EvRvListen, public EvNatsClient,
-                    public EvNatsClientNotify, public EvTimerCallback {
+                    public EvConnectionNotify, public EvTimerCallback {
   void * operator new( size_t, void *ptr ) { return ptr; }
-  int             nats_port;
-  char            svc_buf[ 32 ];
-  EvNatsClient ** clients;
-  char         ** users;
-  size_t          client_cnt,
-                  connect_cnt,
-                  start_cnt,
-                  network_cnt,
-                  shutdown_cnt;
-  uint64_t        total_bytes_lost;
-  double          reconnect_time;
-  uint16_t        reconnect_timeout_secs;
-  bool            is_reconnecting;
+  EvNatsClientParameters nats_parm;
+  char                   user_buf[ 32 ];
+  EvNatsClient        ** clients;
+  char                ** users;
+  size_t                 client_cnt,
+                         connect_cnt,
+                         start_cnt,
+                         network_cnt,
+                         shutdown_cnt;
+  uint64_t               total_bytes_lost;
+  double                 reconnect_time;
+  uint16_t               reconnect_timeout_secs;
+  bool                   is_reconnecting;
 
   MyListener( kv::EvPoll &p ) : EvRvListen( p ), EvNatsClient( p ),
-                                nats_port( 0 ), clients( 0 ), users( 0 ),
+                                clients( 0 ), users( 0 ),
                                 client_cnt( 0 ), connect_cnt( 0 ),
                                 start_cnt( 0 ), network_cnt( 0 ),
                                 shutdown_cnt( 0 ), total_bytes_lost( 0 ),
@@ -56,19 +56,13 @@ struct MyListener : public EvRvListen, public EvNatsClient,
             * snd = (uint8_t *) (void *) &this->mcast.send_ip,
             * hst = (uint8_t *) (void *) &this->mcast.host_ip;*/
     size_t len = this->service_len;
-    if ( len > sizeof( this->svc_buf ) - 1 ) {
+    if ( len > sizeof( this->user_buf ) - 1 ) {
       fprintf( stderr, "service too long\n" );
-      this->EvNatsClient::name = NULL;
-      if ( this->EvNatsClient::user == this->svc_buf )
-        this->EvNatsClient::user = NULL;
+      len = sizeof( this->user_buf ) - 1;
     }
-    else {
-      ::memcpy( this->svc_buf, this->service, this->service_len );
-      this->svc_buf[ this->service_len ] = '\0';
-      this->EvNatsClient::name = this->svc_buf;
-      if ( this->EvNatsClient::user == NULL )
-        this->EvNatsClient::user = this->svc_buf;
-    }
+    ::memcpy( this->user_buf, this->service, this->service_len );
+    this->user_buf[ this->service_len ] = '\0';
+    this->nats_parm.name = this->user_buf;
     printf( "start_network:        service %.*s",
             (int) this->service_len, this->service );
     if ( this->network_len > 0 ) {
@@ -127,7 +121,6 @@ struct MyListener : public EvRvListen, public EvNatsClient,
                           (int) this->service_len, this->service );
         this->users[ i ] = (char *) ::realloc( this->users[ i ], len + 1 );
         ::strcpy( this->users[ i ], buf );
-        this->clients[ i ]->user = this->users[ i ];
         if ( ( overlay[ i ] & 2 ) != 0 )
           this->clients[ i ]->fwd_all_msgs = true;
         else
@@ -147,8 +140,8 @@ struct MyListener : public EvRvListen, public EvNatsClient,
     size_t i;
     for ( i = 0; i < this->network_cnt; i++ ) {
       if ( ! this->clients[ i ]->is_connected() ) {
-        if ( ! this->clients[ i ]->connect( "127.0.0.1", this->nats_port,
-                                            this ) ) {
+        this->nats_parm.user = this->users[ i ];
+        if ( ! this->clients[ i ]->connect( this->nats_parm, this ) ) {
           this->print_error();
           break;
         }
@@ -164,7 +157,8 @@ struct MyListener : public EvRvListen, public EvNatsClient,
       return 0;
 
     if ( ! this->EvNatsClient::is_connected() ) {
-      if ( ! this->EvNatsClient::connect( "127.0.0.1", this->nats_port, this ) ) {
+      this->nats_parm.user = this->user_buf;
+      if ( ! this->EvNatsClient::connect( this->nats_parm, this ) ) {
         this->print_error();
         return -1;
       }
@@ -175,7 +169,7 @@ struct MyListener : public EvRvListen, public EvNatsClient,
   void print_error( void ) {
     char buf[ 80 ];
     ::snprintf( buf, sizeof( buf ),
-                "connect to nats-server at 127.0.0.1:%u", this->nats_port );
+                "connect to nats-server at 127.0.0.1:%u", this->nats_parm.port);
     perror( buf );
   }
   virtual int stop_host( void ) noexcept final {
@@ -218,21 +212,21 @@ struct MyListener : public EvRvListen, public EvNatsClient,
                                            this->reconnect_timeout_secs, 0, 0 );
     }
   }
-  /* EvNatsClientNotify */
-  virtual void on_connect( void ) noexcept final {
+  /* EvConnectionNotify */
+  virtual void on_connect( EvConnection & ) noexcept final {
     if ( ++this->start_cnt == this->connect_cnt ) {
       printf( "connected\n" );
       this->EvRvListen::start_host();
     }
   }
-  virtual void on_shutdown( uint64_t bytes_lost,  const char *err,
+  virtual void on_shutdown( EvConnection &conn,  const char *err,
                             size_t errlen ) noexcept final {
     if ( errlen != 0 )
       printf( "%.*s\n", (int) errlen, err );
     this->connect_cnt -= 1;
     this->start_cnt   -= 1;
     if ( this->shutdown_cnt != 0 ) {
-      this->total_bytes_lost += bytes_lost;
+      this->total_bytes_lost += conn.pending();
       if ( this->connect_cnt == 0 ) {
         if ( this->total_bytes_lost != 0 )
           printf( "bytes_lost %lu\n", this->total_bytes_lost );
@@ -240,7 +234,7 @@ struct MyListener : public EvRvListen, public EvNatsClient,
       }
     }
     else {
-      this->EvRvListen::data_loss_error( bytes_lost, err, errlen );
+      this->EvRvListen::data_loss_error( conn.pending(), err, errlen );
       this->setup_reconnect();
     }
   }
@@ -267,12 +261,12 @@ struct Loop : public MainLoop<Args> {
     if ( ! Listen<MyListener>( 0, this->r.rv_port, this->rv_sv,
                                this->r.tcp_opts ) )
       return false;
-    this->rv_sv->lang       = "C";
-    this->rv_sv->version    = kv_stringify( NATSRV_VER );
-    this->rv_sv->user       = this->r.user;
-    this->rv_sv->pass       = this->r.passwd;
-    this->rv_sv->auth_token = this->r.auth_token;
-    this->rv_sv->nats_port  = this->r.nats_port;
+    this->rv_sv->nats_parm.host       = "127.0.0.1";
+    this->rv_sv->nats_parm.version    = kv_stringify( NATSRV_VER );
+    this->rv_sv->nats_parm.user       = this->r.user;
+    this->rv_sv->nats_parm.pass       = this->r.passwd;
+    this->rv_sv->nats_parm.auth_token = this->r.auth_token;
+    this->rv_sv->nats_parm.port       = this->r.nats_port;
     return true;
   }
   bool init( void ) {
