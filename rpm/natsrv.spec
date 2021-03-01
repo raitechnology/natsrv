@@ -18,6 +18,7 @@ BuildRequires:  pcre2-devel
 BuildRequires:  hdrhist
 BuildRequires:  natsmd
 BuildRequires:  sassrv
+BuildRequires:  git-core
 Requires:       raikv
 Requires:       raimd
 Requires:       libdecnumber
