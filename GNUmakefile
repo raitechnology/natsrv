@@ -63,41 +63,103 @@ math_lib    := -lm
 thread_lib  := -pthread -lrt
 
 # test submodules exist (they don't exist for dist_rpm, dist_dpkg targets)
-have_natsmd_submodule   := $(shell if [ -f ./natsmd/GNUmakefile ]; then echo yes; else echo no; fi )
+have_natsmd_submodule := $(shell if [ -f ./natsmd/GNUmakefile ]; then echo yes; else echo no; fi )
 have_sassrv_submodule := $(shell if [ -f ./sassrv/GNUmakefile ]; then echo yes; else echo no; fi )
+have_hdr_submodule    := $(shell if [ -f ./sassrv/HdrHistogram_c/GNUmakefile ]; then echo yes; else echo no; fi )
+have_kv_submodule     := $(shell if [ -f ./sassrv/raikv/GNUmakefile ]; then echo yes; else echo no; fi )
+have_md_submodule     := $(shell if [ -f ./sassrv/raimd/GNUmakefile ]; then echo yes; else echo no; fi )
+have_dec_submodule    := $(shell if [ -f ./sassrv/raimd/libdecnumber/GNUmakefile ]; then echo yes; else echo no; fi )
 
 lnk_lib     :=
 dlnk_lib    :=
 lnk_dep     :=
 dlnk_dep    :=
 
+# if building submodules, reference them rather than the libs installed
 ifeq (yes,$(have_sassrv_submodule))
-sassrv_lib     := sassrv/$(libd)/libsassrv.a sassrv/raikv/$(libd)/libraikv.a sassrv/raimd/$(libd)/libraimd.a sassrv/raimd/libdecnumber/$(libd)/libdecnumber.a
-sassrv_dll     := sassrv/$(libd)/libsassrv.so
-sassrv_include := -Isassrv/include -Isassrv/raikv/include -Isassrv/raimd/include
-lnk_lib        += $(sassrv_lib)
-lnk_dep        += $(sassrv_lib)
-dlnk_lib       += -Lsassrv/$(libd) -lsassrv -Lsassrv/raikv/$(libd) -lraikv -Lsassrv/raimd/$(libd) -lraimd -Lsassrv/raimd/libdecnumber/$(libd) -ldecnumber
-dlnk_dep       += $(sassrv_dll)
-rpath1         = ,-rpath,$(pwd)/sassrv/$(libd)
+sassrv_lib  := sassrv/$(libd)/libsassrv.a
+sassrv_dll  := sassrv/$(libd)/libsassrv.so
+lnk_lib     += $(sassrv_lib)
+lnk_dep     += $(sassrv_lib)
+dlnk_lib    += -Lsassrv/$(libd) -lsassrv
+dlnk_dep    += $(sassrv_dll)
+rpath1       = ,-rpath,$(pwd)/sassrv/$(libd)
+sassrv_include := -Isassrv/include
 else
-lnk_lib        += -lsassrv -lraikv -lraimd -ldecnumber
-dlnk_lib       += -lsassrv -lraikv -lraimd -ldecnumber
+sassrv_lnk   = -lsassrv
+lnk_lib     += -lsassrv
+dlnk_lib    += -lsassrv
 endif
 
-# if building submodules, reference them rather than the libs installed
 ifeq (yes,$(have_natsmd_submodule))
-natsmd_lib     := natsmd/$(libd)/libnatsmd.a
-natsmd_dll     := natsmd/$(libd)/libnatsmd.so
+natsmd_lib  := natsmd/$(libd)/libnatsmd.a
+natsmd_dll  := natsmd/$(libd)/libnatsmd.so
+lnk_lib     += natsmd/$(libd)/libnatsmd.a
+lnk_dep     += $(natsmd_lib)
+dlnk_lib    += -Lnatsmd/$(libd) -lnatsmd
+dlnk_dep    += $(natsmd_dll)
+rpath2       = ,-rpath,$(pwd)/natsmd/$(libd)
 natsmd_include := -Inatsmd/include
-lnk_lib        += natsmd/$(libd)/libnatsmd.a
-lnk_dep        += $(natsmd_lib)
-dlnk_lib       += -Lnatsmd/$(libd) -natsmd
-dlnk_dep       += $(natsmd_dll)
-rpath5          = ,-rpath,$(pwd)/natsmd/$(libd)
 else
-lnk_lib        += -lnatsmd
-dlnk_lib       += -lnatsmd
+natsmd_lnk  += -lnatsmd
+lnk_lib     += -lnatsmd
+dlnk_lib    += -lnatsmd
+endif
+
+ifeq (yes,$(have_kv_submodule))
+kv_lib      := sassrv/raikv/$(libd)/libraikv.a
+kv_lnk      := sassrv/raikv/$(libd)/libraikv.a
+kv_dll      := sassrv/raikv/$(libd)/libraikv.so
+lnk_lib     += $(kv_lib)
+lnk_dep     += $(kv_lib)
+dlnk_lib    += -Lsassrv/raikv/$(libd) -lraikv
+kv_dlnk_lib += -Lsassrv/raikv/$(libd) -lraikv
+dlnk_dep    += $(kv_dll)
+rpath3       = ,-rpath,$(pwd)/sassrv/raikv/$(libd)
+kv_include  := -Isassrv/raikv/include
+else
+kv_lnk       = -lraikv
+lnk_lib     += -lraikv
+dlnk_lib    += -lraikv
+endif
+
+ifeq (yes,$(have_md_submodule))
+md_lib      := sassrv/raimd/$(libd)/libraimd.a
+md_dll      := sassrv/raimd/$(libd)/libraimd.so
+lnk_lib     += $(md_lib)
+lnk_dep     += $(md_lib)
+dlnk_lib    += -Lsassrv/raimd/$(libd) -lraimd
+dlnk_dep    += $(md_dll)
+rpath4       = ,-rpath,$(pwd)/sassrv/raimd/$(libd)
+md_include  := -Isassrv/raimd/include
+else
+md_lnk      += -lraimd
+lnk_lib     += -lraimd
+dlnk_lib    += -lraimd
+endif
+
+ifeq (yes,$(have_dec_submodule))
+dec_lib     := sassrv/raimd/libdecnumber/$(libd)/libdecnumber.a
+dec_dll     := sassrv/raimd/libdecnumber/$(libd)/libdecnumber.so
+lnk_lib     += $(dec_lib)
+lnk_dep     += $(dec_lib)
+dlnk_lib    += -Lsassrv/raimd/libdecnumber/$(libd) -ldecnumber
+dlnk_dep    += $(dec_dll)
+rpath5       = ,-rpath,$(pwd)/sassrv/raimd/libdecnumber/$(libd)
+else
+dec_lnk     += -ldecnumber
+lnk_lib     += -ldecnumber
+dlnk_lib    += -ldecnumber
+endif
+
+ifeq (yes,$(have_hdr_submodule))
+hdr_lib     := sassrv/HdrHistogram_c/$(libd)/libhdrhist.a
+hdr_dll     := sassrv/HdrHistogram_c/$(libd)/libhdrhist.so
+rpath2       = ,-rpath,$(pwd)/sassrv/HdrHistogram_c/$(libd)
+hdr_includes = -Isassrv/HdrHistogram_c/src
+else
+hdr_lib     := -lhdrhist
+hdr_includes = -I/usr/include/hdrhist
 endif
 
 rpath       := -Wl,-rpath,$(pwd)/$(libd)$(rpath1)$(rpath2)$(rpath3)$(rpath4)$(rpath5)$(rpath6)$(rpath7)
@@ -105,10 +167,10 @@ dlnk_lib    += -lpcre2-8
 malloc_lib  :=
 lnk_lib     += -lpcre2-8
 
-includes += $(sassrv_include) $(natsmd_include)
+includes += $(kv_include) $(md_include) $(sassrv_include) $(natsmd_include)
 
 .PHONY: everything
-everything: $(natsmd_lib) $(sassrv_lib) all
+everything: $(kv_lib) $(dec_lib) $(md_lib) $(natsmd_lib) $(sassrv_lib) $(hdr_lib) all
 
 clean_subs :=
 dlnk_dll_depend :=
@@ -131,6 +193,30 @@ clean_sassrv:
 	$(MAKE) -C sassrv clean
 clean_subs += clean_sassrv
 endif
+ifeq (yes,$(have_kv_submodule))
+$(kv_lib) $(kv_dll):
+	$(MAKE) -C sassrv/raikv
+.PHONY: clean_kv
+clean_kv:
+	$(MAKE) -C sassrv/raikv clean
+clean_subs += clean_kv
+endif
+ifeq (yes,$(have_dec_submodule))
+$(dec_lib) $(dec_dll):
+	$(MAKE) -C sassrv/raimd/libdecnumber
+.PHONY: clean_dec
+clean_dec:
+	$(MAKE) -C sassrv/raimd/libdecnumber clean
+clean_subs += clean_dec
+endif
+ifeq (yes,$(have_md_submodule))
+$(md_lib) $(md_dll):
+	$(MAKE) -C sassrv/raimd
+.PHONY: clean_md
+clean_md:
+	$(MAKE) -C sassrv/raimd clean
+clean_subs += clean_md
+endif
 
 # copr/fedora build (with version env vars)
 # copr uses this to generate a source rpm with the srpm target
@@ -147,17 +233,57 @@ all_dlls    :=
 all_depends :=
 gen_files   :=
 
+libkvendpoint_files := ping_endpoint
+libkvendpoint_objs  := $(addprefix $(objd)/, $(addsuffix .o, $(libkvendpoint_files)))
+libkvendpoint_dbjs  := $(addprefix $(objd)/, $(addsuffix .fpic.o, $(libkvendpoint_files)))
+libkvendpoint_deps  := $(addprefix $(dependd)/, $(addsuffix .d, $(libkvendpoint_files))) \
+                  $(addprefix $(dependd)/, $(addsuffix .fpic.d, $(libkvendpoint_files)))
+libkvendpoint_dlnk  := $(kv_dlnk_lib)
+libkvendpoint_spec  := $(version)-$(build_num)_$(git_hash)
+libkvendpoint_ver   := $(major_num).$(minor_num)
+
+$(libd)/libkvendpoint.a: $(libkvendpoint_objs)
+$(libd)/libkvendpoint.so: $(libkvendpoint_dbjs) $(dlnk_dep)
+
+all_libs    += $(libd)/libkvendpoint.a
+all_dlls    += $(libd)/libkvendpoint.so
+all_depends += $(libkvendpoint_deps)
+
 server_defines      := -DNATSRV_VER=$(ver_build)
 natsrv_server_files := server
 natsrv_server_objs  := $(addprefix $(objd)/, $(addsuffix .o, $(natsrv_server_files)))
 natsrv_server_deps  := $(addprefix $(dependd)/, $(addsuffix .d, $(natsrv_server_files)))
-natsrv_server_libs  := $(natsmd_lib)
+natsrv_server_libs  :=
 natsrv_server_lnk   := $(lnk_lib)
 
 $(bind)/natsrv_server: $(natsrv_server_objs) $(natsrv_server_libs) $(lnk_dep)
 
 all_exes    += $(bind)/natsrv_server
 all_depends += $(natsrv_server_deps)
+
+ping_rv_includes := $(hdr_includes)
+ping_rv_files    := ping_rv
+ping_rv_objs     := $(addprefix $(objd)/, $(addsuffix .o, $(ping_rv_files)))
+ping_rv_deps     := $(addprefix $(dependd)/, $(addsuffix .d, $(ping_rv_files)))
+ping_rv_libs     := $(libd)/libkvendpoint.a
+ping_rv_lnk      := $(sassrv_lib) $(libd)/libkvendpoint.a $(hdr_lib) $(lnk_lib)
+
+$(bind)/ping_rv: $(ping_rv_objs) $(ping_rv_libs) $(lnk_dep)
+
+all_exes    += $(bind)/ping_rv
+all_depends += $(ping_rv_deps)
+
+ping_nats_includes := $(hdr_includes)
+ping_nats_files    := ping_nats
+ping_nats_objs     := $(addprefix $(objd)/, $(addsuffix .o, $(ping_nats_files)))
+ping_nats_deps     := $(addprefix $(dependd)/, $(addsuffix .d, $(ping_nats_files)))
+ping_nats_libs     := $(libd)/libkvendpoint.a
+ping_nats_lnk      := $(natsmd_lib) $(libd)/libkvendpoint.a $(hdr_lib) $(lnk_lib)
+
+$(bind)/ping_nats: $(ping_nats_objs) $(ping_nats_libs) $(lnk_dep)
+
+all_exes    += $(bind)/ping_nats
+all_depends += $(ping_nats_deps)
 
 all_dirs := $(bind) $(libd) $(objd) $(dependd)
 
@@ -167,11 +293,11 @@ all: $(all_libs) $(all_dlls) $(all_exes)
 
 .PHONY: dnf_depend
 dnf_depend:
-	sudo dnf -y install make gcc-c++ git redhat-lsb openssl-devel pcre2-devel chrpath liblzf-devel zlib-devel libbsd-devel
+	sudo dnf -y install make gcc-c++ git redhat-lsb openssl-devel pcre2-devel chrpath liblzf-devel zlib-devel
 
 .PHONY: yum_depend
 yum_depend:
-	sudo yum -y install make gcc-c++ git redhat-lsb openssl-devel pcre2-devel chrpath liblzf-devel zlib-devel libbsd-devel
+	sudo yum -y install make gcc-c++ git redhat-lsb openssl-devel pcre2-devel chrpath liblzf-devel zlib-devel
 
 .PHONY: deb_depend
 deb_depend:

@@ -44,6 +44,7 @@ Rai NATS RV Bridge
 
 %build
 make build_dir=./usr %{?_smp_mflags} dist_bins
+cp -a ./include ./usr/include
 
 %install
 rm -rf %{buildroot}
@@ -58,6 +59,18 @@ rm -rf %{buildroot}
 %files
 %defattr(-,root,root,-)
 %{_bindir}/*
+%{_prefix}/lib64/*
+%{_includedir}/*
+
+%post
+echo "%{_prefix}/lib64" > /etc/ld.so.conf.d/%{name}.conf
+/sbin/ldconfig
+
+%postun
+if [ $1 -eq 0 ] ; then
+rm -f /etc/ld.so.conf.d/%{name}.conf
+fi
+/sbin/ldconfig
 
 %changelog
 * __DATE__ <support@raitechnology.com>
