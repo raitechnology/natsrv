@@ -13,6 +13,7 @@ using namespace md;
 
 PingEndpoint::PingEndpoint( EvPoll &p, EvTimerCallback &c )
             : EvSocket( p, p.register_type( "ping_endpoint" ) ),
+              sub_route( p.sub_route ),
               cb( c ), reconnect_time( 0 ), reconnect_timeout_secs( 1 ),
               is_reconnecting( false ), is_shutdown( false )
 {
@@ -110,9 +111,9 @@ PingEndpoint::loop( uint64_t &delta ) noexcept
 void
 PingEndpoint::start_sub( void ) noexcept
 {
-  uint32_t rcnt = this->poll.sub_route.add_sub_route( this->pub_h, this->fd );
-  this->poll.notify_sub( this->pub_h, this->pub, this->publen, this->fd,
-                         rcnt, 'V', NULL, 0 );
+  uint32_t rcnt = this->sub_route.add_sub_route( this->sub_h, this->fd );
+  this->sub_route.notify_sub( this->sub_h, this->sub, this->sublen, this->fd,
+                              rcnt, 'V', NULL, 0 );
 }
 
 bool
@@ -146,9 +147,9 @@ PingEndpoint::send_ping( uint64_t src,  uint64_t stamp,
   m.ping_src   = src;
   m.time_sent  = stamp;
   m.seqno_sent = num;
-  EvPublish pub( this->sub, this->sublen, NULL, 0, &m, sizeof( m ), this->fd,
-                 this->sub_h, NULL, 0, MD_OPAQUE, 'v' );
-  return this->poll.forward_msg( pub );
+  EvPublish pub( this->pub, this->publen, NULL, 0, &m, sizeof( m ), this->fd,
+                 this->pub_h, NULL, 0, MD_OPAQUE, 'v' );
+  return this->sub_route.forward_msg( pub );
 }
 
 void
@@ -159,16 +160,16 @@ PingEndpoint::connect_failed( void ) noexcept
 }
 
 void
-PingEndpoint::on_connect( EvConnection &conn ) noexcept
+PingEndpoint::on_connect( EvSocket &conn ) noexcept
 {
-  printf( "connected %s\n", conn.peer_address );
+  printf( "connected %s\n", conn.peer_address.buf );
   this->start_sub();
 }
 
 void
-PingEndpoint::on_shutdown( EvConnection &conn,  const char *, size_t ) noexcept
+PingEndpoint::on_shutdown( EvSocket &conn,  const char *, size_t ) noexcept
 {
-  printf( "disconnected %s\n", conn.peer_address );
+  printf( "disconnected %s\n", conn.peer_address.buf );
   this->setup_reconnect();
 }
 
@@ -191,7 +192,8 @@ PingEndpoint::setup_reconnect( void ) noexcept
   }
   this->reconnect_time = now;
   printf( "reconnect in %u seconds\n", this->reconnect_timeout_secs );
-  this->poll.add_timer_seconds( this->cb, this->reconnect_timeout_secs, 0,0 );
+  this->poll.timer.add_timer_seconds( this->cb, this->reconnect_timeout_secs,
+                                      0, 0 );
 }
 
 void PingEndpoint::write( void ) noexcept {}

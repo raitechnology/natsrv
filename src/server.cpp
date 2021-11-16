@@ -208,25 +208,25 @@ struct MyListener : public EvRvListen, public EvNatsClient,
       }
       this->reconnect_time = now;
       printf( "reconnect in %u seconds\n", this->reconnect_timeout_secs );
-      this->EvListen::poll.add_timer_seconds( *this,
+      this->EvListen::poll.timer.add_timer_seconds( *this,
                                            this->reconnect_timeout_secs, 0, 0 );
     }
   }
   /* EvConnectionNotify */
-  virtual void on_connect( EvConnection & ) noexcept final {
+  virtual void on_connect( EvSocket & ) noexcept final {
     if ( ++this->start_cnt == this->connect_cnt ) {
       printf( "connected\n" );
       this->EvRvListen::start_host();
     }
   }
-  virtual void on_shutdown( EvConnection &conn,  const char *err,
+  virtual void on_shutdown( EvSocket &/*conn*/,  const char *err,
                             size_t errlen ) noexcept final {
     if ( errlen != 0 )
       printf( "%.*s\n", (int) errlen, err );
     this->connect_cnt -= 1;
     this->start_cnt   -= 1;
     if ( this->shutdown_cnt != 0 ) {
-      this->total_bytes_lost += conn.pending();
+      /*this->total_bytes_lost += conn.pending();*/
       if ( this->connect_cnt == 0 ) {
         if ( this->total_bytes_lost != 0 )
           printf( "bytes_lost %lu\n", this->total_bytes_lost );
@@ -234,7 +234,7 @@ struct MyListener : public EvRvListen, public EvNatsClient,
       }
     }
     else {
-      this->EvRvListen::data_loss_error( conn.pending(), err, errlen );
+      this->EvRvListen::data_loss_error( 0, err, errlen );
       this->setup_reconnect();
     }
   }

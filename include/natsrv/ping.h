@@ -1,5 +1,5 @@
-#ifndef __rai_raiping__ping_h__
-#define __rai_raiping__ping_h__
+#ifndef __rai_natsrv__ping_h__
+#define __rai_natsrv__ping_h__
 
 #include <raikv/ev_net.h>
 #include <raikv/util.h>
@@ -16,8 +16,8 @@ struct PingMsg {
 };
 
 struct PingEndpoint : public kv::EvSocket, public kv::EvConnectionNotify {
+  kv::RoutePublish    & sub_route;
   kv::EvTimerCallback & cb;
-  uint64_t              timeout_usecs;
   double                reconnect_time;
   uint16_t              reconnect_timeout_secs;
   bool                  is_reconnecting,
@@ -55,8 +55,8 @@ struct PingEndpoint : public kv::EvSocket, public kv::EvConnectionNotify {
   void connect_failed( void ) noexcept;
   void setup_reconnect( void ) noexcept;
 
-  virtual void on_connect( kv::EvConnection &conn ) noexcept;
-  virtual void on_shutdown( kv::EvConnection &conn,  const char *,
+  virtual void on_connect( kv::EvSocket &conn ) noexcept;
+  virtual void on_shutdown( kv::EvSocket &conn,  const char *,
                             size_t ) noexcept;
 };
 

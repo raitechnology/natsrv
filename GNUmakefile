@@ -155,7 +155,8 @@ endif
 ifeq (yes,$(have_hdr_submodule))
 hdr_lib     := sassrv/HdrHistogram_c/$(libd)/libhdrhist.a
 hdr_dll     := sassrv/HdrHistogram_c/$(libd)/libhdrhist.so
-rpath2       = ,-rpath,$(pwd)/sassrv/HdrHistogram_c/$(libd)
+hdr_lnk_dep += $(hdr_lib)
+rpath6       = ,-rpath,$(pwd)/sassrv/HdrHistogram_c/$(libd)
 hdr_includes = -Isassrv/HdrHistogram_c/src
 else
 hdr_lib     := -lhdrhist
@@ -233,7 +234,7 @@ all_dlls    :=
 all_depends :=
 gen_files   :=
 
-libkvendpoint_files := ping_endpoint
+libkvendpoint_files := ping_endpoint sub_endpoint
 libkvendpoint_objs  := $(addprefix $(objd)/, $(addsuffix .o, $(libkvendpoint_files)))
 libkvendpoint_dbjs  := $(addprefix $(objd)/, $(addsuffix .fpic.o, $(libkvendpoint_files)))
 libkvendpoint_deps  := $(addprefix $(dependd)/, $(addsuffix .d, $(libkvendpoint_files))) \
@@ -268,7 +269,7 @@ ping_rv_deps     := $(addprefix $(dependd)/, $(addsuffix .d, $(ping_rv_files)))
 ping_rv_libs     := $(libd)/libkvendpoint.a
 ping_rv_lnk      := $(sassrv_lib) $(libd)/libkvendpoint.a $(hdr_lib) $(lnk_lib)
 
-$(bind)/ping_rv: $(ping_rv_objs) $(ping_rv_libs) $(lnk_dep)
+$(bind)/ping_rv: $(ping_rv_objs) $(ping_rv_libs) $(hdr_lnk_dep) $(lnk_dep)
 
 all_exes    += $(bind)/ping_rv
 all_depends += $(ping_rv_deps)
@@ -280,7 +281,7 @@ ping_nats_deps     := $(addprefix $(dependd)/, $(addsuffix .d, $(ping_nats_files
 ping_nats_libs     := $(libd)/libkvendpoint.a
 ping_nats_lnk      := $(natsmd_lib) $(libd)/libkvendpoint.a $(hdr_lib) $(lnk_lib)
 
-$(bind)/ping_nats: $(ping_nats_objs) $(ping_nats_libs) $(lnk_dep)
+$(bind)/ping_nats: $(ping_nats_objs) $(ping_nats_libs) $(hdr_lnk_dep) $(lnk_dep)
 
 all_exes    += $(bind)/ping_nats
 all_depends += $(ping_nats_deps)
