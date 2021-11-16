@@ -234,7 +234,7 @@ all_dlls    :=
 all_depends :=
 gen_files   :=
 
-libkvendpoint_files := ping_endpoint sub_endpoint
+libkvendpoint_files := ping_endpoint
 libkvendpoint_objs  := $(addprefix $(objd)/, $(addsuffix .o, $(libkvendpoint_files)))
 libkvendpoint_dbjs  := $(addprefix $(objd)/, $(addsuffix .fpic.o, $(libkvendpoint_files)))
 libkvendpoint_deps  := $(addprefix $(dependd)/, $(addsuffix .d, $(libkvendpoint_files))) \
