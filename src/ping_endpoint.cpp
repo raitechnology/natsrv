@@ -111,9 +111,8 @@ PingEndpoint::loop( uint64_t &delta ) noexcept
 void
 PingEndpoint::start_sub( void ) noexcept
 {
-  uint32_t rcnt = this->sub_route.add_sub_route( this->sub_h, this->fd );
-  this->sub_route.notify_sub( this->sub_h, this->sub, this->sublen, this->fd,
-                              rcnt, 'V', NULL, 0 );
+  NotifySub nsub( this->sub, this->sublen, this->sub_h, this->fd, false, 'V' );
+  this->sub_route.add_sub( nsub );
 }
 
 bool
@@ -147,8 +146,8 @@ PingEndpoint::send_ping( uint64_t src,  uint64_t stamp,
   m.ping_src   = src;
   m.time_sent  = stamp;
   m.seqno_sent = num;
-  EvPublish pub( this->pub, this->publen, NULL, 0, &m, sizeof( m ), this->fd,
-                 this->pub_h, NULL, 0, MD_OPAQUE, 'v' );
+  EvPublish pub( this->pub, this->publen, NULL, 0, &m, sizeof( m ),
+                 this->sub_route, this->fd, this->pub_h, MD_OPAQUE, 'v' );
   return this->sub_route.forward_msg( pub );
 }
 
