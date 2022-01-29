@@ -32,6 +32,7 @@ struct MyListener : public EvRvListen, public EvNatsClient,
   char                   user_buf[ 32 ];
   EvNatsClient        ** clients;
   char                ** users;
+  RvHost               * host;
   size_t                 client_cnt,
                          connect_cnt,
                          start_cnt,
@@ -43,7 +44,7 @@ struct MyListener : public EvRvListen, public EvNatsClient,
   bool                   is_reconnecting;
 
   MyListener( kv::EvPoll &p ) : EvRvListen( p ), EvNatsClient( p ),
-                                clients( 0 ), users( 0 ),
+                                clients( 0 ), users( 0 ), host( 0 ),
                                 client_cnt( 0 ), connect_cnt( 0 ),
                                 start_cnt( 0 ), network_cnt( 0 ),
                                 shutdown_cnt( 0 ), total_bytes_lost( 0 ),
@@ -51,23 +52,31 @@ struct MyListener : public EvRvListen, public EvNatsClient,
                                 reconnect_timeout_secs( 1 ),
                                 is_reconnecting( false ) {}
   /* EvRvListen */
-  virtual int start_host( void ) noexcept final {
-    /*uint8_t * rcv = (uint8_t *) (void *) &this->mcast.recv_ip[ 0 ],
-            * snd = (uint8_t *) (void *) &this->mcast.send_ip,
-            * hst = (uint8_t *) (void *) &this->mcast.host_ip;*/
-    size_t len = this->service_len;
+  virtual int start_host( RvHost &h ) noexcept final {
+    /*uint8_t * rcv = (uint8_t *) (void *) &h.mcast.recv_ip[ 0 ],
+            * snd = (uint8_t *) (void *) &h.mcast.send_ip,
+            * hst = (uint8_t *) (void *) &h.mcast.host_ip;*/
+    if ( this->host != &h ) {
+      if ( this->host == NULL ) {
+        this->host = &h;
+      }
+      else {
+        fprintf( stderr, "only one host network permitted\n" );
+        return -1;
+      }
+    }
+    size_t len = h.service_len;
     if ( len > sizeof( this->user_buf ) - 1 ) {
       fprintf( stderr, "service too long\n" );
       len = sizeof( this->user_buf ) - 1;
     }
-    ::memcpy( this->user_buf, this->service, this->service_len );
-    this->user_buf[ this->service_len ] = '\0';
+    ::memcpy( this->user_buf, h.service, h.service_len );
+    this->user_buf[ h.service_len ] = '\0';
     this->nats_parm.name = this->user_buf;
     printf( "start_network:        service %.*s",
-            (int) this->service_len, this->service );
-    if ( this->network_len > 0 ) {
-      printf( ", \"%.*s\"", (int) this->network_len,
-            this->network );
+            (int) h.service_len, h.service );
+    if ( h.network_len > 0 ) {
+      printf( ", \"%.*s\"", (int) h.network_len, h.network );
     }
     printf( "\n" );
 
@@ -81,19 +90,19 @@ struct MyListener : public EvRvListen, public EvNatsClient,
     this->shutdown_cnt     = 0;
     this->total_bytes_lost = 0;
 
-    if ( this->mcast.recv_cnt > 0 && this->mcast.recv_ip[ 0 ] != 0 ) {
+    if ( h.mcast.recv_cnt > 0 && h.mcast.recv_ip[ 0 ] != 0 ) {
       bool send_overlaps_recv = false;
-      for ( i = 0; i < this->mcast.recv_cnt; i++ ) {
-        mcast_ip[ ip_cnt ] = this->mcast.recv_ip[ i ];
+      for ( i = 0; i < h.mcast.recv_cnt; i++ ) {
+        mcast_ip[ ip_cnt ] = h.mcast.recv_ip[ i ];
         overlay[ ip_cnt ] = 1;
-        if ( mcast_ip[ ip_cnt ] == this->mcast.send_ip ) {
+        if ( mcast_ip[ ip_cnt ] == h.mcast.send_ip ) {
           overlay[ ip_cnt ] |= 2;
           send_overlaps_recv = true;
         }
         ip_cnt++;
       }
       if ( ! send_overlaps_recv ) {
-        mcast_ip[ ip_cnt ] = this->mcast.send_ip;
+        mcast_ip[ ip_cnt ] = h.mcast.send_ip;
         overlay[ ip_cnt ] = 2;
         ip_cnt++;
       }
@@ -118,7 +127,7 @@ struct MyListener : public EvRvListen, public EvNatsClient,
         q = (uint8_t *) &mcast_ip[ i ];
         len = ::snprintf( buf, sizeof( buf ), "%u.%u.%u.%u:%.*s",
                           q[ 0 ], q[ 1 ], q[ 2 ], q[ 3 ],
-                          (int) this->service_len, this->service );
+                          (int) h.service_len, h.service );
         this->users[ i ] = (char *) ::realloc( this->users[ i ], len + 1 );
         ::strcpy( this->users[ i ], buf );
         if ( ( overlay[ i ] & 2 ) != 0 )
@@ -172,15 +181,15 @@ struct MyListener : public EvRvListen, public EvNatsClient,
                 "connect to nats-server at 127.0.0.1:%u", this->nats_parm.port);
     perror( buf );
   }
-  virtual int stop_host( void ) noexcept final {
+  virtual int stop_host( RvHost &h ) noexcept final {
     printf( "stop_network:         service %.*s",
-            (int) this->service_len, this->service );
-    if ( this->network_len > 0 ) {
-      printf( ", \"%.*s\"", (int) this->network_len,
-            this->network );
+            (int) h.service_len, h.service );
+    if ( h.network_len > 0 ) {
+      printf( ", \"%.*s\"", (int) h.network_len,
+            h.network );
     }
     printf( "\n" );
-    this->EvRvListen::stop_host();
+    this->EvRvListen::stop_host( h );
     if ( this->network_cnt == 0 ) {
       this->shutdown_cnt = 1;
       this->EvNatsClient::do_shutdown();
@@ -216,7 +225,7 @@ struct MyListener : public EvRvListen, public EvNatsClient,
   virtual void on_connect( EvSocket & ) noexcept final {
     if ( ++this->start_cnt == this->connect_cnt ) {
       printf( "connected\n" );
-      this->EvRvListen::start_host();
+      this->EvRvListen::start_host( *this->host );
     }
   }
   virtual void on_shutdown( EvSocket &/*conn*/,  const char *err,
@@ -234,7 +243,7 @@ struct MyListener : public EvRvListen, public EvNatsClient,
       }
     }
     else {
-      this->EvRvListen::data_loss_error( 0, err, errlen );
+      this->host->data_loss_error( 0, err, errlen );
       this->setup_reconnect();
     }
   }
