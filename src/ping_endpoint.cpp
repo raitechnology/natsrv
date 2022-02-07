@@ -111,7 +111,7 @@ PingEndpoint::loop( uint64_t &delta ) noexcept
 void
 PingEndpoint::start_sub( void ) noexcept
 {
-  NotifySub nsub( this->sub, this->sublen, this->sub_h, this->fd, false, 'V' );
+  NotifySub nsub( this->sub, this->sublen, this->sub_h, this->fd, false, 'P' );
   this->sub_route.add_sub( nsub );
 }
 
