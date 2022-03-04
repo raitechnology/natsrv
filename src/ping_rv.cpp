@@ -17,7 +17,8 @@ using namespace natsrv;
 using namespace sassrv;
 
 static const char *
-get_arg( int argc, char *argv[], int b, const char *f, const char *def )
+get_arg( int argc, const char *argv[], int b, const char *f,
+         const char *def ) noexcept
 {
   for ( int i = 1; i < argc - b; i++ )
     if ( ::strcmp( f, argv[ i ] ) == 0 )
@@ -26,7 +27,7 @@ get_arg( int argc, char *argv[], int b, const char *f, const char *def )
 }
 
 int
-main( int argc, char **argv )
+main( int argc, const char *argv[] )
 {
   SignalHandler sighndl;
   const char * de = get_arg( argc, argv, 1, "-d", "7500" ),
