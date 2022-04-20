@@ -349,7 +349,8 @@ install_prefix = $(DESTDIR)/usr
 endif
 
 install: dist_bins
-	install -d $(install_prefix)/lib $(install_prefix)/bin
+	install -d $(install_prefix)/bin
+	install -m 755 $(bind)/natsrv_server $(install_prefix)/bin
 
 $(objd)/%.o: src/%.cpp
 	$(cpp) $(cflags) $(cppflags) $(includes) $(defines) $($(notdir $*)_includes) $($(notdir $*)_defines) -c $< -o $@
