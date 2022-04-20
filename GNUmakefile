@@ -65,7 +65,7 @@ thread_lib  := -pthread -lrt
 # test submodules exist (they don't exist for dist_rpm, dist_dpkg targets)
 have_natsmd_submodule := $(shell if [ -f ./natsmd/GNUmakefile ]; then echo yes; else echo no; fi )
 have_sassrv_submodule := $(shell if [ -f ./sassrv/GNUmakefile ]; then echo yes; else echo no; fi )
-have_hdr_submodule    := $(shell if [ -f ./sassrv/HdrHistogram_c/GNUmakefile ]; then echo yes; else echo no; fi )
+have_hdr_submodule    := $(shell if [ -f ./HdrHistogram_c/GNUmakefile ]; then echo yes; else echo no; fi )
 have_kv_submodule     := $(shell if [ -f ./sassrv/raikv/GNUmakefile ]; then echo yes; else echo no; fi )
 have_md_submodule     := $(shell if [ -f ./sassrv/raimd/GNUmakefile ]; then echo yes; else echo no; fi )
 have_dec_submodule    := $(shell if [ -f ./sassrv/raimd/libdecnumber/GNUmakefile ]; then echo yes; else echo no; fi )
@@ -153,11 +153,11 @@ dlnk_lib    += -ldecnumber
 endif
 
 ifeq (yes,$(have_hdr_submodule))
-hdr_lib     := sassrv/HdrHistogram_c/$(libd)/libhdrhist.a
-hdr_dll     := sassrv/HdrHistogram_c/$(libd)/libhdrhist.so
+hdr_lib     := HdrHistogram_c/$(libd)/libhdrhist.a
+hdr_dll     := HdrHistogram_c/$(libd)/libhdrhist.so
 hdr_lnk_dep += $(hdr_lib)
-rpath6       = ,-rpath,$(pwd)/sassrv/HdrHistogram_c/$(libd)
-hdr_includes = -Isassrv/HdrHistogram_c/src
+rpath6       = ,-rpath,$(pwd)/HdrHistogram_c/$(libd)
+hdr_includes = -IHdrHistogram_c/src
 else
 hdr_lib     := -lhdrhist
 hdr_includes = -I/usr/include/hdrhist
