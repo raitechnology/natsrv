@@ -23,7 +23,6 @@ Requires:       raikv
 Requires:       raimd
 Requires:       libdecnumber
 Requires:       pcre2
-Requires:       openssl
 Requires:       hdrhist
 Requires:       natsmd
 Requires:       sassrv
