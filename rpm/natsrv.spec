@@ -23,11 +23,8 @@ Requires:       raikv
 Requires:       raimd
 Requires:       libdecnumber
 Requires:       pcre2
-Requires:       hdrhist
 Requires:       natsmd
 Requires:       sassrv
-Requires(post): /sbin/ldconfig
-Requires(postun): /sbin/ldconfig
 
 %description
 Rai NATS RV Bridge
@@ -58,18 +55,10 @@ rm -rf %{buildroot}
 %files
 %defattr(-,root,root,-)
 %{_bindir}/*
-%{_prefix}/lib64/*
-%{_includedir}/*
 
 %post
-echo "%{_prefix}/lib64" > /etc/ld.so.conf.d/%{name}.conf
-/sbin/ldconfig
 
 %postun
-if [ $1 -eq 0 ] ; then
-rm -f /etc/ld.so.conf.d/%{name}.conf
-fi
-/sbin/ldconfig
 
 %changelog
 * __DATE__ <support@raitechnology.com>
