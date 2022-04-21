@@ -330,7 +330,7 @@ $(dependd)/depend.make: $(dependd) $(all_depends)
 	@cat $(all_depends) >> $(dependd)/depend.make
 
 .PHONY: dist_bins
-dist_bins: $(all_libs) $(all_dlls) $(bind)/natsrv_server
+dist_bins: $(bind)/natsrv_server
 	chrpath -d $(bind)/natsrv_server
 
 .PHONY: dist_rpm
