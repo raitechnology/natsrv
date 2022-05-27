@@ -296,7 +296,7 @@ main( int argc, const char *argv[] )
   #define NATS_USER_ENV  "NATS_USER"
   #define NATS_PASS_ENV  "NATS_PASS"
   #define NATS_TOKEN_ENV "AUTH_TOKEN"
-  EvShm shm;
+  EvShm shm( "natsrv_server" );
   Args  r;
 
   r.no_threads   = true;
