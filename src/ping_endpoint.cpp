@@ -28,7 +28,7 @@ PingEndpoint::init_endpoint( bool reflect,  const char *sub_subject,
 {
   int status, pfd = this->poll.get_null_fd();
 
-  this->PeerData::init_peer( pfd, NULL, "ping_endpoint" );
+  this->PeerData::init_peer( pfd, -1, NULL, "ping_endpoint" );
   if ( (status = this->poll.add_sock( this )) != 0 )
     return status;
 
