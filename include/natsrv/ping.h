@@ -48,6 +48,7 @@ struct PingEndpoint : public kv::EvSocket, public kv::EvConnectionNotify {
   virtual void write( void ) noexcept;
   virtual void read( void ) noexcept;
   virtual void process( void ) noexcept;
+  virtual void process_close( void ) noexcept;
   virtual void release( void ) noexcept;
   bool recv_ping( uint64_t &src, uint64_t &stamp, uint64_t &num ) noexcept;
   bool send_ping( uint64_t src,  uint64_t stamp,  uint64_t num ) noexcept;

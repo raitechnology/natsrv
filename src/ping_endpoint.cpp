@@ -200,3 +200,10 @@ void PingEndpoint::read( void ) noexcept {}
 void PingEndpoint::process( void ) noexcept {}
 void PingEndpoint::release( void ) noexcept {}
 
+void
+PingEndpoint::process_close( void ) noexcept
+{
+  this->client_stats( this->sub_route.peer_stats );
+  this->EvSocket::process_close();
+}
+
