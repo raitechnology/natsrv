@@ -50,7 +50,9 @@ struct MyListener : public EvRvListen, public EvNatsClient,
                                 shutdown_cnt( 0 ), total_bytes_lost( 0 ),
                                 reconnect_time( 0 ),
                                 reconnect_timeout_secs( 1 ),
-                                is_reconnecting( false ) {}
+                                is_reconnecting( false ) {
+    this->EvRvListen::has_service_prefix = false;
+  }
   /* EvRvListen */
   virtual int start_host( RvHost &h ) noexcept final {
     /*uint8_t * rcv = (uint8_t *) (void *) &h.mcast.recv_ip[ 0 ],
