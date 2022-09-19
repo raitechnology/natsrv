@@ -54,18 +54,21 @@ struct MyListener : public EvRvListen, public EvNatsClient,
     this->EvRvListen::has_service_prefix = false;
   }
   /* EvRvListen */
-  virtual int start_host( RvHost &h ) noexcept final {
-    /*uint8_t * rcv = (uint8_t *) (void *) &h.mcast.recv_ip[ 0 ],
-            * snd = (uint8_t *) (void *) &h.mcast.send_ip,
-            * hst = (uint8_t *) (void *) &h.mcast.host_ip;*/
-    if ( this->host != &h ) {
-      if ( this->host == NULL ) {
-        this->host = &h;
-      }
-      else {
-        fprintf( stderr, "only one host network permitted\n" );
-        return -1;
-      }
+  virtual int start_host( RvHost &h, const char *net,  size_t net_len,
+                          const char *svc,  size_t svc_len ) noexcept {
+    if ( ! h.start_in_progress ) {
+      int status = h.check_network( net, net_len, svc, svc_len );
+      if ( status != HOST_OK )
+        return status;
+      h.start_in_progress = true;
+    }
+    if ( this->host == &h )
+      return 0;
+    if ( this->host == NULL )
+      this->host = &h;
+    else {
+      fprintf( stderr, "only one host network permitted\n" );
+      return -1;
     }
     size_t len = h.service_len;
     if ( len > sizeof( this->user_buf ) - 1 ) {
@@ -183,7 +186,7 @@ struct MyListener : public EvRvListen, public EvNatsClient,
                 "connect to nats-server at 127.0.0.1:%u", this->nats_parm.port);
     perror( buf );
   }
-  virtual int stop_host( RvHost &h ) noexcept final {
+  virtual int stop_host( RvHost &h ) noexcept {
     printf( "stop_network:         service %.*s",
             (int) h.service_len, h.service );
     if ( h.network_len > 0 ) {
@@ -201,6 +204,7 @@ struct MyListener : public EvRvListen, public EvNatsClient,
       for ( size_t i = 0; i < this->network_cnt; i++ )
         this->clients[ i ]->do_shutdown();
     }
+    this->host = NULL;
     return 0;
   }
   void setup_reconnect( void ) noexcept {
@@ -224,14 +228,17 @@ struct MyListener : public EvRvListen, public EvNatsClient,
     }
   }
   /* EvConnectionNotify */
-  virtual void on_connect( EvSocket & ) noexcept final {
+  virtual void on_connect( EvSocket & ) noexcept {
     if ( ++this->start_cnt == this->connect_cnt ) {
       printf( "connected\n" );
-      this->EvRvListen::start_host( *this->host );
+      this->EvRvListen::start_host( *this->host, this->host->network,
+                                    this->host->network_len,
+                                    this->host->service,
+                                    this->host->service_len );
     }
   }
   virtual void on_shutdown( EvSocket &/*conn*/,  const char *err,
-                            size_t errlen ) noexcept final {
+                            size_t errlen ) noexcept {
     if ( errlen != 0 )
       printf( "%.*s\n", (int) errlen, err );
     this->connect_cnt -= 1;
