@@ -163,9 +163,9 @@ hdr_includes = -I/usr/include/hdrhist
 endif
 
 rpath       := -Wl,-rpath,$(pwd)/$(libd)$(rpath1)$(rpath2)$(rpath3)$(rpath4)$(rpath5)$(rpath6)$(rpath7)
-dlnk_lib    += -lpcre2-8
+dlnk_lib    += -lpcre2-8 -lcares
 malloc_lib  :=
-lnk_lib     += -lpcre2-8
+lnk_lib     += -lpcre2-8 -lcares
 
 includes += $(kv_include) $(md_include) $(sassrv_include) $(natsmd_include)
 
@@ -293,15 +293,15 @@ all: $(all_libs) $(all_dlls) $(all_exes)
 
 .PHONY: dnf_depend
 dnf_depend:
-	sudo dnf -y install make gcc-c++ git redhat-lsb openssl-devel pcre2-devel chrpath liblzf-devel zlib-devel
+	sudo dnf -y install make gcc-c++ git redhat-lsb openssl-devel pcre2-devel chrpath liblzf-devel zlib-devel c-ares-devel
 
 .PHONY: yum_depend
 yum_depend:
-	sudo yum -y install make gcc-c++ git redhat-lsb openssl-devel pcre2-devel chrpath liblzf-devel zlib-devel
+	sudo yum -y install make gcc-c++ git redhat-lsb openssl-devel pcre2-devel chrpath liblzf-devel zlib-devel c-ares-devel
 
 .PHONY: deb_depend
 deb_depend:
-	sudo apt-get install -y install make g++ gcc devscripts libpcre2-dev chrpath git lsb-release libssl-dev
+	sudo apt-get install -y install make g++ gcc devscripts libpcre2-dev chrpath git lsb-release libssl-dev c-ares-dev
 
 # create directories
 $(dependd):
