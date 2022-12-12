@@ -28,6 +28,7 @@ struct Args : public MainLoopVars { /* argv[] parsed args */
 struct MyListener : public EvRvListen, public EvNatsClient,
                     public EvConnectionNotify, public EvTimerCallback {
   void * operator new( size_t, void *ptr ) { return ptr; }
+  RvHostDB               db;
   EvNatsClientParameters nats_parm;
   char                   user_buf[ 32 ];
   EvNatsClient        ** clients;
@@ -43,21 +44,18 @@ struct MyListener : public EvRvListen, public EvNatsClient,
   uint16_t               reconnect_timeout_secs;
   bool                   is_reconnecting;
 
-  MyListener( kv::EvPoll &p ) : EvRvListen( p ), EvNatsClient( p ),
-                                clients( 0 ), users( 0 ), host( 0 ),
-                                client_cnt( 0 ), connect_cnt( 0 ),
-                                start_cnt( 0 ), network_cnt( 0 ),
-                                shutdown_cnt( 0 ), total_bytes_lost( 0 ),
-                                reconnect_time( 0 ),
-                                reconnect_timeout_secs( 1 ),
-                                is_reconnecting( false ) {
-    this->EvRvListen::has_service_prefix = false;
-  }
+  MyListener( kv::EvPoll &p )
+    : EvRvListen( p, this->db, false ), EvNatsClient( p ),
+      clients( 0 ), users( 0 ), host( 0 ),
+      client_cnt( 0 ), connect_cnt( 0 ),
+      start_cnt( 0 ), network_cnt( 0 ),
+      shutdown_cnt( 0 ), total_bytes_lost( 0 ),
+      reconnect_time( 0 ), reconnect_timeout_secs( 1 ),
+      is_reconnecting( false ) {}
   /* EvRvListen */
-  virtual int start_host( RvHost &h, const char *net,  size_t net_len,
-                          const char *svc,  size_t svc_len ) noexcept {
+  virtual int start_host( RvHost &h, const RvHostNet &hn ) noexcept {
     if ( ! h.start_in_progress ) {
-      int status = h.check_network( net, net_len, svc, svc_len );
+      int status = h.check_network( hn );
       if ( status != HOST_OK )
         return status;
       h.start_in_progress = true;
@@ -231,10 +229,12 @@ struct MyListener : public EvRvListen, public EvNatsClient,
   virtual void on_connect( EvSocket & ) noexcept {
     if ( ++this->start_cnt == this->connect_cnt ) {
       printf( "connected\n" );
-      this->EvRvListen::start_host( *this->host, this->host->network,
-                                    this->host->network_len,
-                                    this->host->service,
-                                    this->host->service_len );
+      RvHostNet hn( this->host->network,
+                    this->host->network_len,
+                    this->host->service,
+                    this->host->service_len,
+                    this->ipport, false );
+      this->EvRvListen::start_host( *this->host, hn );
     }
   }
   virtual void on_shutdown( EvSocket &/*conn*/,  const char *err,
